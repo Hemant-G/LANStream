@@ -1,0 +1,22 @@
+# 1. Virtual Environment
+venv/
+.venv/
+
+# 2. Python Byte-code
+__pycache__/
+*.pyc
+
+# 3. Local Configuration and Secrets
+.env
+# Flask-specific environment file (optional but good to ignore)
+.flaskenv
+
+# 4. Flask-specific Folders
+# The 'instance' folder is for local, unversioned files like log files or a SQLite DB.
+instance/
+*.log
+
+# 5. Operating System and Editor Files
+.DS_Store
+Thumbs.db
+.vscode/
