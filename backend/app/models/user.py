@@ -1,4 +1,5 @@
-from app.__init__ import db
+# lanstream/backend/app/models/user.py
+from app.extensions import db
 from datetime import datetime, timezone
 
 class User(db.Model):
