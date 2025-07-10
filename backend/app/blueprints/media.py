@@ -93,3 +93,11 @@ def stream_media(media_id):
         as_attachment=False,
         mimetype='video/mp4'
     )
+
+# Serve DASH manifest and segments
+@media_bp.route('/dash/<int:media_id>/<path:filename>')
+def serve_dash_content(media_id, filename):
+    media_root = current_app.config['MEDIA_PATH']
+    dash_dir = os.path.join(media_root, f'dash/{media_id}')
+    
+    return send_from_directory(dash_dir, filename)
