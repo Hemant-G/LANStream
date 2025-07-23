@@ -4,7 +4,7 @@ import DashPlayer from './components/DashPlayer';
 function App() {
   // --- IMPORTANT: Change this URL to your Flask server's address ---
   const [mediaId, setMediaId] = useState(27); // Set a default media ID to test
-  const manifestUrl = `http://192.168.18.6:5000/api/media/dash/${mediaId}/manifest.mpd`;
+  const manifestUrl = `http://127.0.0.1:5000/api/media/dash/${mediaId}/manifest.mpd`;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gray-900 text-gray-100">
