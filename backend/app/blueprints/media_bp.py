@@ -3,11 +3,10 @@ from flask_login import login_required, current_user
 from app.extensions import db
 from app.models.media import MediaItem
 from app.models.user_media_progress import UserMediaProgress
-from app import run_scan
+from app.transcoding import package_for_dash
 import os
 from datetime import datetime, timezone
-from sqlalchemy import func, case
-from functools import wraps # <--- NEW IMPORT
+from functools import wraps 
 
 media_bp = Blueprint('media', __name__)
 
@@ -44,10 +43,14 @@ def list_media():
     ).all()
 
     response_list = []
+    backend_url = os.environ.get('BACKEND_URL', '')  # fallback to empty string if not set
+
     for media_item, progress_seconds, last_watched_at in media_data:
-        thumbnail_url = media_item.thumbnail if media_item.thumbnail else \
-                        f"https://upload.wikimedia.org/wikipedia/commons/b/b6/Image_created_with_a_mobile_phone.png"
-        
+        # Serve thumbnail from /media/thumbnails/<filename>
+        if media_item.thumbnail:
+            thumbnail_url = f"{backend_url}/media/thumbnails/{os.path.basename(media_item.thumbnail)}"
+        else:
+            thumbnail_url = "https://upload.wikimedia.org/wikipedia/commons/b/b6/Image_created_with_a_mobile_phone.png"     
         response_list.append({
             "id": media_item.id,
             "title": media_item.title,
@@ -84,7 +87,6 @@ def get_user_progress(media_id):
             'current_progress_seconds': 0,
             'last_watched_at': None
         }), 200
-
 
 @media_bp.route('/<int:media_id>/progress', methods=['POST'])
 @login_required
@@ -208,16 +210,73 @@ def update_media(media_id):
 @admin_required # Only admin can delete media
 def delete_media(media_id):
     media_item = MediaItem.query.get_or_404(media_id)
+    # Delete all user progress entries for this media item
+    progress_entries = UserMediaProgress.query.filter_by(media_item_id=media_item.id).all()
+    for progress in progress_entries:
+        db.session.delete(progress)
     db.session.delete(media_item)
     db.session.commit()
-    
     return jsonify({'message': f'Media item with ID {media_id} deleted'}), 200
 
 @media_bp.route('/scan', methods=['POST'])
 @admin_required # Only admin can trigger a scan
 def scan_media_endpoint():
-    run_scan(current_app) 
-    return jsonify({'message': 'Media scan started. Check server logs for progress.'}), 200
+    """
+    Scans the media directory, updates the database to only include media files
+    that currently exist, removes deleted files and their progress, and generates
+    thumbnails and DASH packages for new files.
+    """
+    media_root = current_app.config['MEDIA_PATH']
+    scan_dir = media_root  # or set to a subdirectory if needed
+
+    # 1. Get all media files in the directory (e.g., .mp4, .mkv, .avi)
+    valid_exts = {'.mp4', '.mkv', '.avi', '.mov', '.webm'}
+    found_files = []
+    for root, dirs, files in os.walk(scan_dir):
+        for fname in files:
+            ext = os.path.splitext(fname)[1].lower()
+            if ext in valid_exts:
+                rel_path = os.path.relpath(os.path.join(root, fname), media_root)
+                found_files.append(rel_path)
+
+    # 2. Remove MediaItems (and progress) for files that no longer exist
+    db_files = {item.filepath: item for item in MediaItem.query.all()}
+    found_files_set = set(found_files)
+    db_files_set = set(db_files.keys())
+
+    deleted_files = db_files_set - found_files_set
+    for filepath in deleted_files:
+        media_item = db_files[filepath]
+        # Delete all user progress for this media item
+        progress_entries = UserMediaProgress.query.filter_by(media_item_id=media_item.id).all()
+        for progress in progress_entries:
+            db.session.delete(progress)
+        db.session.delete(media_item)
+    db.session.commit()
+
+    # 3. Add new MediaItems for new files and process them
+    added = 0
+    for rel_path in found_files:
+        if rel_path not in db_files:
+            # You can extract title from filename or use ffprobe for metadata
+            title = os.path.splitext(os.path.basename(rel_path))[0]
+            media_type = os.path.splitext(rel_path)[1][1:].lower()
+            new_media = MediaItem(
+                title=title,
+                filepath=rel_path,
+                media_type=media_type
+            )
+            db.session.add(new_media)
+            db.session.flush()  # Get new_media.id before commit
+
+            # Generate DASH package and thumbnail
+            package_for_dash(current_app._get_current_object(), new_media.id)
+            added += 1
+    db.session.commit()
+
+    return jsonify({
+        'message': f'Scan complete. {len(deleted_files)} removed, {added} added, {len(found_files)} total in DB.'
+    }), 200
 
 @media_bp.route('/stream/<int:media_id>', methods=['GET'])
 @login_required # Streaming requires login
@@ -252,3 +311,14 @@ def serve_dash_content(media_id, filename):
         return jsonify({"error": "Invalid filename"}), 400
 
     return send_from_directory(dash_dir, filename)
+
+@media_bp.route('/thumbnails/<filename>')
+def serve_thumbnail(filename):
+    """
+    Serves video thumbnails from the thumbnails directory.
+    """
+    media_root = current_app.config['MEDIA_PATH']
+    thumbnail_dir = os.path.join(media_root, 'thumbnails')
+    if ".." in filename or filename.startswith('/'):
+        return jsonify({"error": "Invalid filename"}), 400
+    return send_from_directory(thumbnail_dir, filename)

@@ -65,9 +65,39 @@ def run_ffmpeg_command(cmd, log_prefix="FFmpeg"):
         return False
 
 # --------------------------------------------------------------------------------------
+def generate_video_thumbnail(input_filepath, output_thumbnail_path, time_position=3):
+    """
+    Generates a thumbnail image from the video using ffmpeg.
+    Args:
+        input_filepath (str): Path to the input video file.
+        output_thumbnail_path (str): Path to save the generated thumbnail image.
+        time_position (int): Time (in seconds) to capture the thumbnail frame.
+    Returns:
+        bool: True if thumbnail was generated successfully, False otherwise.
+    """
+    cmd = [
+        'ffmpeg', '-y',
+        '-ss', str(time_position),  # Seek to N seconds
+        '-i', input_filepath,
+        '-frames:v', '1',           # Capture one frame
+        '-q:v', '2',                # Quality (lower is better)
+        '-vf', 'scale=320:-1',      # Scale width to 320px, keep aspect ratio
+        output_thumbnail_path
+    ]
+    try:
+        logging.info(f"Generating thumbnail: {' '.join(cmd)}")
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        logging.debug(f"Thumbnail generation stdout: {result.stdout}")
+        logging.debug(f"Thumbnail generation stderr: {result.stderr}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to generate thumbnail for {input_filepath}: {e}")
+        return False
+
 def package_for_dash(app, media_id):
     """
     Packages a media item into DASH format using a multi-pass encoding strategy.
+    Also generates a video thumbnail and saves its path in the database.
     
     Args:
         app: The Flask application instance, needed for app.app_context() and app.config.
@@ -96,6 +126,21 @@ def package_for_dash(app, media_id):
         except OSError as e:
             logging.error(f"Failed to create output directories: {e}")
             return False
+
+        # --- Generate thumbnail before packaging ---
+        thumbnail_dir = os.path.join(media_root, 'thumbnails')
+        os.makedirs(thumbnail_dir, exist_ok=True)
+        thumbnail_filename = f"{media_item.id}.jpg"
+        thumbnail_path = os.path.join(thumbnail_dir, thumbnail_filename)
+        thumbnail_rel_path = os.path.relpath(thumbnail_path, media_root)
+
+        if generate_video_thumbnail(input_filepath, thumbnail_path):
+            # Save thumbnail path in database if successful
+            media_item.thumbnail = thumbnail_rel_path
+            db.session.commit()
+            logging.info(f"Thumbnail generated and saved to DB: {thumbnail_rel_path}")
+        else:
+            logging.warning("Thumbnail generation failed; proceeding without updating thumbnail.")
 
         logging.info(f"Starting DASH packaging for '{media_item.title}' using multi-pass strategy...")
 

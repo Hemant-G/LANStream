@@ -14,7 +14,6 @@ class UserMediaProgress(db.Model):
 
     # Relationships
     user = db.relationship('User', backref=db.backref('media_progress', lazy='dynamic'))
-    media_item = db.relationship('MediaItem', backref=db.backref('user_progress', lazy='dynamic'))
 
     def __repr__(self):
         return f'<UserMediaProgress User:{self.user_id} Media:{self.media_item_id} Progress:{self.current_progress_seconds}s>'
