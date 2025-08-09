@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+/* Add custom animations for seek indicator if not already in tailwind.config.js */
+/* If you use a custom tailwind.config.js, put this in the extend.keyframes section */
+/* Or simply define it here if you don't use the extend feature */
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.animate-fade-in-out {
+  animation: fadeInOut 0.8s ease-in-out forwards; /* forwards keeps final state */
+}
