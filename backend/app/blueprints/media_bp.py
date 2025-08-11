@@ -218,8 +218,9 @@ def delete_media(media_id):
     db.session.commit()
     return jsonify({'message': f'Media item with ID {media_id} deleted'}), 200
 
+
 @media_bp.route('/scan', methods=['POST'])
-@admin_required # Only admin can trigger a scan
+@admin_required 
 def scan_media_endpoint():
     """
     Scans the media directory, updates the database to only include media files

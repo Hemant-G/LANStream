@@ -114,14 +114,73 @@ def create_app(config_class=Config):
     def scan_media_command():
         run_scan(app)
 
+    # --- CLI for list media ---
+    @app.cli.command("list-media")
+    def list_media_command():
+        """Lists all media items currently in the database."""
+        from app.models.media import MediaItem
+        from app.extensions import db
+
+        with current_app.app_context():
+            media_items = MediaItem.query.order_by(MediaItem.id).all()
+            
+            if not media_items:
+                print("No media files found in the database.")
+                return
+
+            print("\n--- Media Files in Database ---")
+            for item in media_items:
+                print(f"ID: {item.id}, Title: '{item.title}', Path: '{item.filepath}'")
+            print("---------------------------------")
+            print(f"Total files: {len(media_items)}")
+
     # --- CLI for package dash ---
     @app.cli.command('package-dash')
-    @click.argument('media_id', type=int)
-    def package_dash_command(media_id):
-        print(f"Attempting to package media item with ID: {media_id}")
-        package_for_dash(app, media_id)
-        print("Packaging command finished. Please check the terminal output for details.")
-        print(f"Expected output directory: {app.config['MEDIA_PATH']}/dash/{media_id}/")
+    @click.argument('media_ids', nargs=-1, type=int, required=False)
+    @click.option('--all', 'all_videos', is_flag=True, help='Packages all videos in the database.')
+    def package_dash_command(media_ids, all_videos):
+        """
+        Generates a DASH package for one or more media items.
+        
+        To package specific videos:
+        flask package-dash 1 2 3
+        
+        To package all videos:
+        flask package-dash --all
+        """
+        from app.models.media import MediaItem
+        
+        if not media_ids and not all_videos:
+            print("Error: You must provide at least one MEDIA_ID or use the --all flag.")
+            return
+
+        with current_app.app_context():
+            videos_to_package = []
+            
+            if all_videos:
+                print("Packaging all videos in the database...")
+                videos_to_package = MediaItem.query.all()
+            else:
+                print(f"Packaging specific videos with IDs: {media_ids}")
+                for media_id in media_ids:
+                    media_item = MediaItem.query.get(media_id)
+                    if media_item:
+                        videos_to_package.append(media_item)
+                    else:
+                        print(f"Warning: Media item with ID {media_id} not found in the database. Skipping.")
+
+            if not videos_to_package:
+                print("No videos found to package.")
+                return
+
+            total_videos = len(videos_to_package)
+            for i, media_item in enumerate(videos_to_package, 1):
+                print(f"\n--- Packaging video {i}/{total_videos}: '{media_item.title}' (ID: {media_item.id}) ---")
+                try:
+                    package_for_dash(current_app, media_item.id)
+                    print(f"--- Successfully packaged '{media_item.title}' ---")
+                except Exception as e:
+                    print(f"--- Error packaging '{media_item.title}': {e} ---")
 
     # --- Simple routes for testing purposes ---
     @app.route('/')

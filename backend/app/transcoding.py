@@ -81,7 +81,6 @@ def generate_video_thumbnail(input_filepath, output_thumbnail_path, time_positio
         '-i', input_filepath,
         '-frames:v', '1',           # Capture one frame
         '-q:v', '2',                # Quality (lower is better)
-        '-vf', 'scale=320:-1',      # Scale width to 320px, keep aspect ratio
         output_thumbnail_path
     ]
     try:
