@@ -137,7 +137,7 @@ const Watch = () => {
     // --- Conditional Rendering for User Feedback ---
     if (isLoading || loading) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-gray-900 text-white text-xl">
+            <div className="flex justify-center items-center min-h-screen bg-slate-950 text-slate-400 text-xl font-medium">
                 {isLoading ? 'Authenticating...' : 'Loading media details...'}
             </div>
         );
@@ -145,7 +145,7 @@ const Watch = () => {
 
     if (error) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-gray-900 text-red-500 text-xl flex-col">
+            <div className="flex justify-center items-center min-h-screen bg-slate-950 text-red-500 text-xl flex-col p-4">
                 <p>Error: {error}</p>
             </div>
         );
@@ -153,7 +153,7 @@ const Watch = () => {
 
     if (!mediaDetails) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-gray-900 text-gray-400 text-xl">
+            <div className="flex justify-center items-center min-h-screen bg-slate-950 text-slate-400 text-xl">
                 Media item not found.
             </div>
         );
@@ -163,20 +163,20 @@ const Watch = () => {
     const manifestUrl = `${backendBaseUrl}/api/media/dash/${mediaDetails.id}/manifest.mpd`;
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center">
+        <div className="min-h-screen bg-slate-950 text-slate-400 p-6 flex flex-col items-center">
             <header className="w-full max-w-4xl flex justify-between items-center mb-6">
                 <button
                     onClick={() => navigate('/')}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors"
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors duration-200 font-medium text-slate-400"
                 >
                     &larr; Back to Home
                 </button>
-                <h1 className="text-3xl font-bold text-teal-400 truncate max-w-xs sm:max-w-md">
+                <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-purple-600 truncate max-w-xs sm:max-w-md">
                     {mediaDetails.title}
                 </h1>
             </header>
 
-            <main className="w-full max-w-4xl bg-black rounded-lg shadow-xl overflow-hidden">
+            <main className="w-full max-w-4xl bg-black rounded-xl shadow-2xl overflow-hidden">
                 <DashPlayer
                     manifestUrl={manifestUrl}
                     playerRef={playerRef}
@@ -184,10 +184,10 @@ const Watch = () => {
                 />
             </main>
 
-            <footer className="mt-8 text-center text-gray-500 text-sm">
+            <footer className="mt-8 text-center text-slate-600 text-sm">
                 <p>Streaming: {mediaDetails.title} (ID: {mediaDetails.id})</p>
                 <p className="mt-2">
-                    <a href="https://dash.js.org/" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:underline">Powered by dash.js</a>
+                    <a href="https://dash.js.org/" target="_blank" rel="noopener noreferrer" className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:opacity-80 transition-opacity">Powered by dash.js</a>
                 </p>
             </footer>
         </div>

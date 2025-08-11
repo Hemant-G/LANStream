@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import * as dashjs_lib from 'dashjs';
+import { PlayIcon, PauseIcon, SpeakerWaveIcon, SpeakerXMarkIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon } from '@heroicons/react/24/solid';
 
 // Helper function for time formatting (e.g., 90 -> "1:30")
 const formatTime = (seconds) => {
@@ -12,74 +13,55 @@ const formatTime = (seconds) => {
 /**
  * DashPlayer component
  * A custom DASH.js-based video player with custom controls, quality selection, and keyboard shortcuts.
- *
- * Props:
- * - manifestUrl: string - URL to the DASH manifest (MPD)
- * - playerRef: React ref - Ref to expose the dash.js player instance
- * - initialTime: number - Initial playback time (in seconds)
- * - onPlayerInitialized: function (optional) - Callback after player is initialized
  */
 const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }) => {
     // --- Refs for DOM elements ---
-    const videoRef = useRef(null);                // <video> element reference
-    const progressBarRef = useRef(null);          // Progress bar reference
-    const playerContainerRef = useRef(null);      // Player container reference
+    const videoRef = useRef(null);
+    const progressBarRef = useRef(null);
+    const playerContainerRef = useRef(null);
 
     // --- Player State ---
-    const [isPlaying, setIsPlaying] = useState(false);         // Is video playing
-    const [currentTime, setCurrentTime] = useState(0);         // Current playback time
-    const [duration, setDuration] = useState(0);               // Video duration
-    const [volume, setVolume] = useState(1);                   // Volume (0-1)
-    const [isMuted, setIsMuted] = useState(false);             // Is muted
-    const [isBuffering, setIsBuffering] = useState(true);      // Is buffering
-    const [isFullScreen, setIsFullScreen] = useState(false);   // Is fullscreen
-    const [isControlsVisible, setIsControlsVisible] = useState(true); // Controls visibility
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [volume, setVolume] = useState(1);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isBuffering, setIsBuffering] = useState(true);
+    const [isFullScreen, setIsFullScreen] = useState(false);
+    const [isControlsVisible, setIsControlsVisible] = useState(true);
 
     // --- Quality Selection ---
-    const [qualityLevels, setQualityLevels] = useState([]);    // Available video qualities
-    const [selectedQuality, setSelectedQuality] = useState('auto'); // Selected quality
+    const [qualityLevels, setQualityLevels] = useState([]);
+    const [selectedQuality, setSelectedQuality] = useState('auto');
 
     // --- Seek Indicator ---
-    const [seekIndicator, setSeekIndicator] = useState(null);  // Show seek feedback
-    const seekIndicatorTimeoutRef = useRef(null);              // Timeout for seek indicator
-    const controlsHideTimeoutRef = useRef(null);               // Timeout for hiding controls
+    const [seekIndicator, setSeekIndicator] = useState(null);
+    const seekIndicatorTimeoutRef = useRef(null);
+    const controlsHideTimeoutRef = useRef(null);
 
     // --- Control Handlers ---
-
-    /**
-     * Toggle play/pause state of the video.
-     */
     const togglePlayPause = useCallback(() => {
         if (!videoRef.current) return;
         if (isPlaying) {
             videoRef.current.pause();
-            console.log("[DashPlayer INFO] Video paused.");
         } else {
             videoRef.current.play().catch(error => {
                 console.warn("[DashPlayer WARN] Play failed:", error);
             });
-            console.log("[DashPlayer INFO] Attempting to play video.");
         }
         setIsControlsVisible(true);
     }, [isPlaying]);
 
-    /**
-     * Seek to a position based on progress bar click.
-     */
     const handleProgressBarClick = useCallback((e) => {
         if (progressBarRef.current && videoRef.current && duration > 0) {
             const rect = progressBarRef.current.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const percent = clickX / rect.width;
             videoRef.current.currentTime = percent * duration;
-            console.log(`[DashPlayer INFO] Seeked to ${formatTime(videoRef.current.currentTime)}`);
         }
         setIsControlsVisible(true);
     }, [duration]);
 
-    /**
-     * Handle volume slider change.
-     */
     const handleVolumeChangeSlider = useCallback((e) => {
         const newVolume = parseFloat(e.target.value);
         if (videoRef.current) {
@@ -88,9 +70,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
         setIsControlsVisible(true);
     }, []);
 
-    /**
-     * Toggle mute/unmute.
-     */
     const toggleMute = useCallback(() => {
         if (videoRef.current) {
             videoRef.current.muted = !isMuted;
@@ -98,29 +77,17 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
         setIsControlsVisible(true);
     }, [isMuted]);
 
-    /**
-     * Toggle fullscreen mode for the player container.
-     */
     const toggleFullScreen = useCallback(() => {
         if (playerContainerRef.current) {
             if (!isFullScreen) {
-                console.log("[DashPlayer INFO] Requesting fullscreen.");
                 playerContainerRef.current.requestFullscreen?.();
-                playerContainerRef.current.mozRequestFullScreen?.();
-                playerContainerRef.current.webkitRequestFullscreen?.();
             } else {
-                console.log("[DashPlayer INFO] Exiting fullscreen.");
                 document.exitFullscreen?.();
-                document.mozCancelFullScreen?.();
-                document.webkitExitFullscreen?.();
             }
         }
         setIsControlsVisible(true);
     }, [isFullScreen]);
 
-    /**
-     * Handle quality selection change.
-     */
     const handleQualityChange = useCallback((event) => {
         const value = event.target.value;
         if (playerRef.current) {
@@ -140,10 +107,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
         setIsControlsVisible(true);
     }, []);
 
-    /**
-     * Seek forward or backward by a given number of seconds.
-     * Shows a seek indicator overlay.
-     */
     const seekBy = useCallback((seconds) => {
         if (!videoRef.current) return;
         const newTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
@@ -157,9 +120,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
         setIsControlsVisible(false);
     }, [duration]);
 
-    /**
-     * Handle double-click on video: left half = rewind, right half = forward.
-     */
     const handleDoubleClick = useCallback((e) => {
         if (!videoRef.current) return;
         const rect = videoRef.current.getBoundingClientRect();
@@ -172,13 +132,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
         }
     }, [seekBy]);
 
-    /**
-     * Keyboard shortcuts for player controls.
-     * - Left/Right arrows: seek
-     * - Space: play/pause
-     * - F: fullscreen
-     * - M: mute
-     */
     const handleKeyDown = useCallback((e) => {
         switch (e.key) {
             case 'ArrowLeft':
@@ -191,7 +144,7 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
                 break;
             case ' ':
                 e.preventDefault();
-                togglePlayPause();true
+                togglePlayPause();
                 break;
             case 'f':
             case 'F':
@@ -206,9 +159,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
         }
     }, [seekBy, togglePlayPause, toggleFullScreen, toggleMute]);
 
-    /**
-     * Show controls and set up auto-hide timer.
-     */
     const showControls = useCallback(() => {
         setIsControlsVisible(true);
         clearTimeout(controlsHideTimeoutRef.current);
@@ -219,9 +169,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
         }
     }, [isPlaying, isBuffering, isFullScreen]);
 
-    /**
-     * Hide controls if playing and not buffering/fullscreen.
-     */
     const hideControls = useCallback(() => {
         if (isPlaying && !isBuffering && !isFullScreen) {
             setIsControlsVisible(false);
@@ -229,14 +176,8 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
     }, [isPlaying, isBuffering, isFullScreen]);
 
     // --- Effects ---
-
-    /**
-     * Effect: Initialize dash.js player when manifestUrl changes.
-     * Sets up event listeners for player state and quality.
-     */
     useEffect(() => {
         if (!videoRef.current || !manifestUrl || !dashjs_lib?.MediaPlayer) {
-            console.error("[DashPlayer ERROR] Missing refs for initialization.");
             return;
         }
 
@@ -249,12 +190,8 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
                 abr: {
                     autoSwitchBitrate: { video: false },
                     rules: {
-                        throughputRule: {
-                            active: true
-                        },
-                        bolaRule: {
-                            active: true
-                        }
+                        throughputRule: { active: true },
+                        bolaRule: { active: true }
                     }
                 }
             }
@@ -262,7 +199,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
 
         player.initialize(videoRef.current, manifestUrl, false);
 
-        // Handle stream initialization: set initial time and quality options
         const handleStreamInitialized = () => {
             if (initialTime > 0) player.seek(initialTime);
             const reps = player.getRepresentationsByType('video');
@@ -282,7 +218,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
             }
         };
 
-        // Player event listeners
         player.on(dashjs_lib.MediaPlayer.events.STREAM_INITIALIZED, handleStreamInitialized);
         player.on(dashjs_lib.MediaPlayer.events.PLAYBACK_STARTED, () => setIsPlaying(true));
         player.on(dashjs_lib.MediaPlayer.events.PLAYBACK_PAUSED, () => setIsPlaying(false));
@@ -293,7 +228,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
             setSelectedQuality(active ? active.id.toString() : 'auto');
         });
 
-        // Native video events
         videoRef.current.addEventListener('timeupdate', () => setCurrentTime(videoRef.current.currentTime));
         videoRef.current.addEventListener('loadedmetadata', () => setDuration(videoRef.current.duration));
         videoRef.current.addEventListener('volumechange', () => {
@@ -301,19 +235,14 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
             setIsMuted(videoRef.current.muted);
         });
 
-        // Fullscreen change event
         document.addEventListener('fullscreenchange', () => setIsFullScreen(!!document.fullscreenElement));
 
-        // Cleanup on unmount or manifestUrl change
         return () => {
             player.reset();
             playerRef.current = null;
         };
     }, [manifestUrl, playerRef, initialTime]);
 
-    /**
-     * Effect: Keyboard shortcuts listener for the video element.
-     */
     useEffect(() => {
         if (!videoRef.current) return;
         videoRef.current.tabIndex = 0;
@@ -323,9 +252,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
         };
     }, [handleKeyDown]);
 
-    /**
-     * Effect: Show controls when playback/buffering/fullscreen state changes.
-     */
     useEffect(() => {
         showControls();
     }, [isPlaying, isBuffering, showControls]);
@@ -334,7 +260,7 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
     return (
         <div
             ref={playerContainerRef}
-            className={`relative w-full max-w-4xl aspect-video rounded-lg overflow-hidden shadow-2xl bg-slate-900
+            className={`relative w-full max-w-4xl aspect-video rounded-xl overflow-hidden shadow-2xl bg-slate-950
                 ${isFullScreen ? 'fixed inset-0 z-[100] rounded-none' : ''}`}
             onMouseMove={showControls}
             onMouseLeave={hideControls}
@@ -351,14 +277,14 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
 
             {/* Buffering Overlay */}
             {isBuffering && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 text-white z-20">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-slate-400 z-20">
                     Buffering...
                 </div>
             )}
 
             {/* Seek Indicator Overlay */}
             {seekIndicator && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/50 text-white px-4 py-2 rounded-4xl">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-800/80 text-slate-400 px-4 py-2 rounded-full">
                     {seekIndicator}
                 </div>
             )}
@@ -367,48 +293,67 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
             <div
                 className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent
                     ${isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
-                    transition-all`}
+                    transition-all duration-300 ease-in-out`}
             >
                 {/* Progress Bar */}
                 <div
                     ref={progressBarRef}
-                    className="w-full h-2 bg-slate-700 rounded cursor-pointer overflow-hidden"
+                    className="w-full h-2 bg-slate-700 rounded-full cursor-pointer overflow-hidden group"
                     onClick={handleProgressBarClick}
                 >
                     <div
-                        className="h-full bg-teal-500"
+                        className="h-full bg-gradient-to-r from-fuchsia-500 to-purple-600 transition-all duration-100"
                         style={{ width: `${(currentTime / duration) * 100}%` }}
                     />
                 </div>
 
                 {/* Control Buttons and Info */}
-                <div className="flex justify-between mt-2 text-white">
-                    <div className="flex items-center space-x-3">
+                <div className="flex justify-between items-center mt-4 text-slate-400">
+                    <div className="flex items-center space-x-4">
                         {/* Play/Pause Button */}
-                        <button onClick={togglePlayPause}>
-                            {isPlaying ? '⏸' : '▶️'}
+                        <button onClick={togglePlayPause} className="hover:text-white transition-colors duration-200">
+                            {isPlaying ? <PauseIcon className="h-8 w-8" /> : <PlayIcon className="h-8 w-8" />}
                         </button>
                         {/* Time Display */}
-                        <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
-                        {/* Mute Button */}
-                        <button onClick={toggleMute}>{isMuted ? '🔇' : '🔊'}</button>
-                        {/* Volume Slider */}
-                        <input type="range" min="0" max="1" step="0.01"
-                            value={isMuted ? 0 : volume}
-                            onChange={handleVolumeChangeSlider} />
+                        <span className="font-mono text-sm">
+                            {formatTime(currentTime)} / {formatTime(duration)}
+                        </span>
+                        {/* Volume Controls */}
+                        <div className="flex items-center space-x-2">
+                            <button onClick={toggleMute} className="hover:text-white transition-colors duration-200">
+                                {isMuted ? <SpeakerXMarkIcon className="h-6 w-6" /> : <SpeakerWaveIcon className="h-6 w-6" />}
+                            </button>
+                            <input type="range" min="0" max="1" step="0.01"
+                                value={isMuted ? 0 : volume}
+                                onChange={handleVolumeChangeSlider}
+                                className="w-24 h-1 rounded-lg cursor-pointer accent-fuchsia-500"
+                            />
+                        </div>
                     </div>
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-4">
                         {/* Quality Selector */}
-                        <select value={selectedQuality} onChange={handleQualityChange}>
-                            <option value="auto">Auto</option>
-                            {qualityLevels.map(q => (
-                                <option key={q.id} value={q.id}>
-                                    {q.width}x{q.height} ({Math.round(q.bitrate / 1000)} kbps)
-                                </option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <select
+                                value={selectedQuality}
+                                onChange={handleQualityChange}
+                                className="appearance-none bg-slate-800 text-slate-400 py-1 pl-3 pr-8 rounded-md cursor-pointer text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500 transition-colors duration-200"
+                            >
+                                <option value="auto">Auto</option>
+                                {qualityLevels.map(q => (
+                                    <option key={q.id} value={q.id}>
+                                        {q.width}x{q.height} ({Math.round(q.bitrate / 1000)} kbps)
+                                    </option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                            </div>
+                        </div>
+
                         {/* Fullscreen Button */}
-                        <button onClick={toggleFullScreen}>{isFullScreen ? '⛶' : '🖵'}</button>
+                        <button onClick={toggleFullScreen} className="hover:text-white transition-colors duration-200">
+                            {isFullScreen ? <ArrowsPointingInIcon className="h-6 w-6" /> : <ArrowsPointingOutIcon className="h-6 w-6" />}
+                        </button>
                     </div>
                 </div>
             </div>

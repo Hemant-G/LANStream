@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true); // Initial loading state for auth check
 
     // Make this configurable, e.g., from environment variables
-    const backendBaseUrl = 'http://127.0.0.1:5000';
+    const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
 
     // Function to check current authentication status
     const checkAuthStatus = useCallback(async () => {

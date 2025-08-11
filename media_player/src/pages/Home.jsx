@@ -7,89 +7,52 @@ import MediaCard from '../components/MediaCard';
 /**
  * Home page
  * Displays a list of media items for authenticated users.
- * Handles authentication, media fetching, error handling, and admin actions.
  */
 const Home = () => {
-    // Auth and navigation context
     const { isAuthenticated, user, logout, isLoading, backendBaseUrl } = useAuth();
-
-    // State for media items, fetch status, and errors
     const [mediaItems, setMediaItems] = useState([]);
     const [fetchError, setFetchError] = useState(null);
     const [fetchLoading, setFetchLoading] = useState(false);
-    const [hasFetchedMedia, setHasFetchedMedia] = useState(false); // Track if media has been fetched
+    const [hasFetchedMedia, setHasFetchedMedia] = useState(false);
     const navigate = useNavigate();
 
-    // Redirect to login if not authenticated
     useEffect(() => {
         if (!isLoading && !isAuthenticated) {
             navigate('/login');
         }
     }, [isLoading, isAuthenticated, navigate]);
 
-    /**
-     * Fetch media list from backend.
-     * Handles authentication errors and sets state.
-     */
     const fetchMedia = useCallback(async () => {
         setFetchLoading(true);
         setFetchError(null);
         try {
-            const response = await axios.get(`${backendBaseUrl}/api/media/list`, {
-                withCredentials: true,
-            });
+            const response = await axios.get(`${backendBaseUrl}/api/media/list`, { withCredentials: true });
             setMediaItems(response.data);
-            setFetchError(null);
             setHasFetchedMedia(true);
         } catch (error) {
-            if (axios.isAxiosError(error)) {
-                if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-                    await logout();
-                    navigate('/login');
-                } else {
-                    const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch media items.';
-                    setFetchError(errorMessage);
-                }
+            if (axios.isAxiosError(error) && error.response && (error.response.status === 401 || error.response.status === 403)) {
+                await logout();
+                navigate('/login');
             } else {
-                setFetchError('Network error. Please check your connection.');
+                setFetchError(error.response?.data?.message || error.message || 'Failed to fetch media items.');
             }
         } finally {
             setFetchLoading(false);
         }
-    }, [isAuthenticated, backendBaseUrl, logout, navigate]);
+    }, [backendBaseUrl, logout, navigate]);
 
-    /**
-     * Effect to trigger media fetching.
-     * Only fetches if authenticated and not already fetched.
-     */
     useEffect(() => {
         if (isAuthenticated && !isLoading && !fetchLoading && !hasFetchedMedia) {
             fetchMedia();
         }
-        // Reset fetch state if authentication is lost
-        if (!isAuthenticated && hasFetchedMedia) {
-            setHasFetchedMedia(false);
-        }
     }, [isAuthenticated, isLoading, fetchLoading, hasFetchedMedia, fetchMedia]);
 
-    /**
-     * Handles user logout.
-     * Resets media fetch state on logout.
-     */
     const handleLogout = async () => {
-        const result = await logout();
-        if (result.success) {
-            navigate('/login');
-            setHasFetchedMedia(false);
-        } else {
-            alert(result.message);
-        }
+        await logout();
+        navigate('/login');
+        setHasFetchedMedia(false);
     };
 
-    /**
-     * Admin-only: Triggers a media scan on the backend.
-     * Refreshes the media list after scanning.
-     */
     const handleScanMedia = async () => {
         if (!user || user.role !== 'admin') {
             alert('You must be an admin to perform this action.');
@@ -97,65 +60,60 @@ const Home = () => {
         }
         setFetchLoading(true);
         try {
-            const response = await axios.post(`${backendBaseUrl}/api/media/scan`, {}, {
-                withCredentials: true,
-            });
+            const response = await axios.post(`${backendBaseUrl}/api/media/scan`, {}, { withCredentials: true });
             alert(response.data.message);
-            setHasFetchedMedia(false); // Trigger re-fetch
+            setHasFetchedMedia(false);
         } catch (error) {
-            if (axios.isAxiosError(error)) {
-                alert(`Error: ${error.response?.data?.message || error.message || 'Failed to trigger scan.'}`);
-            } else {
-                alert('Network error during media scan.');
-            }
+            alert(`Error: ${error.response?.data?.message || error.message || 'Failed to trigger scan.'}`);
         } finally {
             setFetchLoading(false);
         }
     };
 
-    // --- Render Logic ---
-    if (isLoading || fetchLoading) {
-        return (
-            <div className="flex justify-center items-center min-h-screen bg-gray-900 text-white text-xl">
-                Loading...
-            </div>
-        );
-    }
+    const renderLoadingState = () => (
+        <div className="flex justify-center items-center min-h-screen bg-slate-950 text-slate-400 text-xl font-medium">
+            Loading...
+        </div>
+    );
 
-    if (fetchError) {
-        return (
-            <div className="flex justify-center items-center min-h-screen bg-gray-900 text-red-500 text-xl">
-                Error: {fetchError}
-                <button
-                    onClick={handleLogout}
-                    className="ml-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-white"
-                >
-                    Logout
-                </button>
-            </div>
-        );
-    }
+    const renderErrorState = () => (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-slate-600 text-xl p-4">
+            <p className="mb-4 text-center">Error: {fetchError}</p>
+            <button onClick={handleLogout} className="px-6 py-3 bg-slate-800 hover:bg-slate-600 rounded-lg text-white font-semibold transition-colors duration-200">
+                Logout
+            </button>
+        </div>
+    );
 
-    if (!isAuthenticated) {
-        return (
-            <div className="flex justify-center items-center min-h-screen bg-gray-900 text-white text-xl">
-                Please <Link to="/login" className="text-teal-400 hover:underline ml-2">log in</Link> to view content.
-            </div>
-        );
-    }
+    const renderEmptyState = () => (
+        <div className="flex justify-center items-center h-64 bg-slate-800 rounded-xl p-6">
+            <p className="text-slate-600 text-lg font-medium">No media items found. The library is empty.</p>
+        </div>
+    );
+
+    if (isLoading) return renderLoadingState();
+    if (!isAuthenticated) return null;
+    if (fetchError) return renderErrorState();
+    
+    const featuredItem = mediaItems.length > 0 ? mediaItems[0] : null;
+    const otherMedia = mediaItems.slice(1);
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white p-6">
-            <header className="flex justify-between items-center mb-8">
-                <h1 className="text-4xl font-bold text-teal-400">LANStream</h1>
-                <div className="flex items-center space-x-4">
+        <div className="min-h-screen bg-slate-950 text-slate-400 px-4 sm:px-8 py-6">
+            <header className="flex flex-col sm:flex-row justify-between items-center mb-10">
+                <Link to="/" className="text-4xl sm:text-5xl font-extrabold text-slate-400 mb-4 sm:mb-0">
+                    LANStream
+                </Link>
+                <div className="flex items-center space-x-3 sm:space-x-4 text-sm sm:text-base">
                     {user && (
-                        <span className="text-lg">Logged in as: <span className="font-semibold">{user.username}</span> ({user.role})</span>
+                        <span className="text-slate-600">
+                            Logged in as: <span className="font-semibold text-slate-400">{user.username}</span>
+                        </span>
                     )}
                     {user && user.role === 'admin' && (
                         <button
                             onClick={handleScanMedia}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-md transition-colors duration-200 font-medium"
                             disabled={fetchLoading}
                         >
                             {fetchLoading ? 'Scanning...' : 'Scan Media'}
@@ -163,26 +121,52 @@ const Home = () => {
                     )}
                     <button
                         onClick={handleLogout}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+                        className="px-4 py-2 bg-slate-800 hover:bg-slate-600 cursor-pointer rounded-md transition-colors duration-200 font-medium"
                     >
                         Logout
                     </button>
                 </div>
             </header>
 
-            <h2 className="text-2xl font-bold text-gray-200 mb-6">Recently Watched & All Media</h2>
+            <main>
+                {featuredItem && (
+                    <div className="relative mb-12 rounded-xl overflow-hidden shadow-2xl">
+                        <img
+                            src={featuredItem.thumbnail || "https://upload.wikimedia.org/wikipedia/commons/b/b6/Image_created_with_a_mobile_phone.png"}
+                            alt={featuredItem.title}
+                            className="w-full h-auto object-cover max-h-[70vh] rounded-xl"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent flex items-end p-8 sm:p-16">
+                            <div className="max-w-2xl">
+                                <h2 className="text-4xl sm:text-6xl font-bold mb-2 text-slate-300 drop-shadow-lg py-4">
+                                    {featuredItem.title}
+                                </h2>
+                                <Link
+                                    to={`/watch/${featuredItem.id}`}
+                                    className="px-8 py-4 text-lg font-bold bg-slate-400 text-slate-950 rounded-full hover:bg-slate-300 transition-colors duration-300 shadow-xl"
+                                >
+                                    Watch Now
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
-            {mediaItems.length === 0 && (
-                <div className="flex justify-center items-center h-48 bg-gray-800 rounded-lg">
-                    <p className="text-gray-400 text-lg">No media items found.</p>
-                </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                {mediaItems.map((media) => (
-                    <MediaCard key={media.id} media={media} />
-                ))}
-            </div>
+                <section className="mb-12">
+                    <h3 className="text-2xl font-bold text-slate-400 mb-6">Recently Watched & All Media</h3>
+                    {otherMedia.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                            {otherMedia.map(media => (
+                                <Link key={media.id} to={`/watch/${media.id}`}>
+                                    <MediaCard media={media} />
+                                </Link>
+                            ))}
+                        </div>
+                    ) : (
+                        renderEmptyState()
+                    )}
+                </section>
+            </main>
         </div>
     );
 };
