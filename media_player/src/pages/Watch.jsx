@@ -6,27 +6,22 @@ import axios from 'axios';
 
 const WATCH_PROGRESS_INTERVAL_SECONDS = 30;
 
-/**
- * Watch page
- * Handles authentication, fetches media details, manages playback progress, and renders the DashPlayer.
- */
 const Watch = () => {
     const { mediaId } = useParams();
     const navigate = useNavigate();
     const { isAuthenticated, isLoading, logout, backendBaseUrl } = useAuth();
 
-    // State for media details, user progress, loading, and error
     const [mediaDetails, setMediaDetails] = useState(null);
     const [userProgress, setUserProgress] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Ref for DashPlayer instance and progress interval
     const playerRef = useRef(null);
     const progressIntervalRef = useRef(null);
-
-    // Ref to store the last known video position for robust progress saving
     const lastKnownPositionRef = useRef(0);
+    
+    // New ref to reference the player's DOM container
+    const playerContainerRef = useRef(null); 
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -37,40 +32,34 @@ const Watch = () => {
 
     // Fetch media details and user progress from backend
     useEffect(() => {
-        if (isLoading || !isAuthenticated || !mediaId || !backendBaseUrl) {
-            return;
-        }
+        if (!isLoading && isAuthenticated && mediaId && backendBaseUrl) {
+            const fetchData = async () => {
+                setLoading(true);
+                setError(null);
+                try {
+                    const mediaResponse = await axios.get(`${backendBaseUrl}/api/media/${mediaId}`, { withCredentials: true });
+                    setMediaDetails(mediaResponse.data);
 
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const mediaResponse = await axios.get(`${backendBaseUrl}/api/media/${mediaId}`, { withCredentials: true });
-                setMediaDetails(mediaResponse.data);
+                    const progressResponse = await axios.get(`${backendBaseUrl}/api/media/${mediaId}/progress`, { withCredentials: true });
+                    setUserProgress(progressResponse.data.current_progress_seconds || 0);
 
-                const progressResponse = await axios.get(`${backendBaseUrl}/api/media/${mediaId}/progress`, { withCredentials: true });
-                setUserProgress(progressResponse.data.current_progress_seconds || 0);
-
-            } catch (err) {
-                if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
-                    await logout();
-                    navigate('/login');
-                } else if (axios.isAxiosError(err) && err.response?.status === 404) {
-                    setError('Media item not found. Please check the media ID.');
-                } else {
-                    setError('An unexpected error occurred during fetch.');
+                } catch (err) {
+                    if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
+                        await logout();
+                        navigate('/login');
+                    } else if (axios.isAxiosError(err) && err.response?.status === 404) {
+                        setError('Media item not found. Please check the media ID.');
+                    } else {
+                        setError('An unexpected error occurred during fetch.');
+                    }
+                } finally {
+                    setLoading(false);
                 }
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
+            };
+            fetchData();
+        }
     }, [mediaId, isAuthenticated, backendBaseUrl, logout, navigate, isLoading]);
 
-    /**
-     * Save playback progress to backend.
-     * Saves the current position, or marks as finished if near the end.
-     */
     const saveProgress = useCallback(async (currentPosition) => {
         if (!isAuthenticated || !mediaId || currentPosition === null || isNaN(currentPosition) || !backendBaseUrl || !mediaDetails) {
             return;
@@ -78,7 +67,6 @@ const Watch = () => {
 
         let positionToSave = Math.floor(currentPosition);
 
-        // If near the end, mark as finished
         if (mediaDetails.duration_seconds && mediaDetails.duration_seconds > 0 && (mediaDetails.duration_seconds - currentPosition < 5)) {
             positionToSave = mediaDetails.duration_seconds;
         }
@@ -93,18 +81,13 @@ const Watch = () => {
         }
     }, [isAuthenticated, mediaId, backendBaseUrl, mediaDetails]);
 
-    /**
-     * Initialize player actions and periodic progress saving.
-     * Seeks to last watched position and sets up interval for saving progress.
-     * Cleans up interval and saves progress on unmount.
-     */
+    // Initial player setup, progress saving, and fullscreen
     useEffect(() => {
         const isReady = mediaDetails && playerRef.current;
         if (isReady) {
             const player = playerRef.current;
             lastKnownPositionRef.current = userProgress;
 
-            // Seek to last watched position or start
             if (userProgress > 0 && userProgress < mediaDetails.duration_seconds) {
                 player.seek(userProgress);
             } else if (userProgress === mediaDetails.duration_seconds) {
@@ -112,8 +95,14 @@ const Watch = () => {
             } else {
                 player.seek(0);
             }
+            
+            // Auto-enter fullscreen when player is ready
+            if (playerContainerRef.current) {
+                playerContainerRef.current.requestFullscreen().catch(err => {
+                    console.warn("Fullscreen request failed:", err);
+                });
+            }
 
-            // Periodically save progress
             progressIntervalRef.current = setInterval(() => {
                 const currentPosition = player.time();
                 saveProgress(currentPosition);
@@ -124,7 +113,6 @@ const Watch = () => {
             if (progressIntervalRef.current) {
                 clearInterval(progressIntervalRef.current);
             }
-            // Final save on unmount
             const player = playerRef.current;
             if (player && player.time) {
                 saveProgress(player.time());
@@ -134,10 +122,9 @@ const Watch = () => {
         };
     }, [mediaDetails, userProgress, saveProgress]);
 
-    // --- Conditional Rendering for User Feedback ---
     if (isLoading || loading) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-slate-950 text-slate-400 text-xl font-medium">
+            <div className="flex justify-center items-center min-h-screen bg-gray-950 text-slate-400 text-xl font-medium">
                 {isLoading ? 'Authenticating...' : 'Loading media details...'}
             </div>
         );
@@ -145,7 +132,7 @@ const Watch = () => {
 
     if (error) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-slate-950 text-red-500 text-xl flex-col p-4">
+            <div className="flex justify-center items-center min-h-screen bg-gray-950 text-red-500 text-xl flex-col p-4">
                 <p>Error: {error}</p>
             </div>
         );
@@ -153,43 +140,26 @@ const Watch = () => {
 
     if (!mediaDetails) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-slate-950 text-slate-400 text-xl">
+            <div className="flex justify-center items-center min-h-screen bg-gray-950 text-slate-400 text-xl">
                 Media item not found.
             </div>
         );
     }
 
-    // Construct DASH manifest URL for the player
     const manifestUrl = `${backendBaseUrl}/api/media/dash/${mediaDetails.id}/manifest.mpd`;
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-400 p-6 flex flex-col items-center">
-            <header className="w-full max-w-4xl flex justify-between items-center mb-6">
-                <button
-                    onClick={() => navigate('/')}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors duration-200 font-medium text-slate-400"
-                >
-                    &larr; Back to Home
-                </button>
-                <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-purple-600 truncate max-w-xs sm:max-w-md">
-                    {mediaDetails.title}
-                </h1>
-            </header>
-
-            <main className="w-full max-w-4xl bg-black rounded-xl shadow-2xl overflow-hidden">
+        <div className="h-screen bg-gray-950 text-slate-400 flex flex-col items-center">
+            <main className="h-full bg-black rounded-xl shadow-2xl overflow-hidden">
                 <DashPlayer
                     manifestUrl={manifestUrl}
                     playerRef={playerRef}
                     initialTime={userProgress}
+                    playerContainerRef={playerContainerRef}
+                    mediaTitle={mediaDetails.title}
+                    onBackClick={() => navigate('/')}
                 />
             </main>
-
-            <footer className="mt-8 text-center text-slate-600 text-sm">
-                <p>Streaming: {mediaDetails.title} (ID: {mediaDetails.id})</p>
-                <p className="mt-2">
-                    <a href="https://dash.js.org/" target="_blank" rel="noopener noreferrer" className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:opacity-80 transition-opacity">Powered by dash.js</a>
-                </p>
-            </footer>
         </div>
     );
 };

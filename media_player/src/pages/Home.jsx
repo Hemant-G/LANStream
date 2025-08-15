@@ -99,7 +99,7 @@ const Home = () => {
     const otherMedia = mediaItems.slice(1);
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-400 px-4 sm:px-8 py-6">
+        <div className="min-h-screen bg-gray-950 text-slate-400 px-4 sm:px-8 py-6">
             <header className="flex flex-col sm:flex-row justify-between items-center mb-10">
                 <Link to="/" className="text-4xl sm:text-5xl font-extrabold text-slate-400 mb-4 sm:mb-0">
                     LANStream
@@ -136,7 +136,7 @@ const Home = () => {
                             alt={featuredItem.title}
                             className="w-full h-auto object-cover max-h-[70vh] rounded-xl"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent flex items-end p-8 sm:p-16">
+                        <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent flex items-end p-8 sm:p-16">
                             <div className="max-w-2xl">
                                 <h2 className="text-4xl sm:text-6xl font-bold mb-2 text-slate-300 drop-shadow-lg py-4">
                                     {featuredItem.title}

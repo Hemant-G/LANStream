@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import * as dashjs_lib from 'dashjs';
-import { PlayIcon, PauseIcon, SpeakerWaveIcon, SpeakerXMarkIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon } from '@heroicons/react/24/solid';
+import { PlayIcon, PauseIcon, SpeakerWaveIcon, SpeakerXMarkIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/solid';
 
-// Helper function for time formatting (e.g., 90 -> "1:30")
 const formatTime = (seconds) => {
     if (isNaN(seconds) || seconds < 0) return "0:00";
     const minutes = Math.floor(seconds / 60);
@@ -10,17 +9,10 @@ const formatTime = (seconds) => {
     return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
 };
 
-/**
- * DashPlayer component
- * A custom DASH.js-based video player with custom controls, quality selection, and keyboard shortcuts.
- */
-const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }) => {
-    // --- Refs for DOM elements ---
+const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackClick, playerContainerRef }) => {
     const videoRef = useRef(null);
     const progressBarRef = useRef(null);
-    const playerContainerRef = useRef(null);
 
-    // --- Player State ---
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
@@ -30,16 +22,13 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isControlsVisible, setIsControlsVisible] = useState(true);
 
-    // --- Quality Selection ---
     const [qualityLevels, setQualityLevels] = useState([]);
     const [selectedQuality, setSelectedQuality] = useState('auto');
 
-    // --- Seek Indicator ---
     const [seekIndicator, setSeekIndicator] = useState(null);
     const seekIndicatorTimeoutRef = useRef(null);
     const controlsHideTimeoutRef = useRef(null);
 
-    // --- Control Handlers ---
     const togglePlayPause = useCallback(() => {
         if (!videoRef.current) return;
         if (isPlaying) {
@@ -162,20 +151,19 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
     const showControls = useCallback(() => {
         setIsControlsVisible(true);
         clearTimeout(controlsHideTimeoutRef.current);
-        if (isPlaying && !isBuffering && !isFullScreen) {
+        if (isPlaying && !isBuffering) {
             controlsHideTimeoutRef.current = setTimeout(() => {
                 setIsControlsVisible(false);
             }, 3000);
         }
-    }, [isPlaying, isBuffering, isFullScreen]);
+    }, [isPlaying, isBuffering]);
 
     const hideControls = useCallback(() => {
-        if (isPlaying && !isBuffering && !isFullScreen) {
+        if (isPlaying && !isBuffering) {
             setIsControlsVisible(false);
         }
-    }, [isPlaying, isBuffering, isFullScreen]);
+    }, [isPlaying, isBuffering]);
 
-    // --- Effects ---
     useEffect(() => {
         if (!videoRef.current || !manifestUrl || !dashjs_lib?.MediaPlayer) {
             return;
@@ -256,17 +244,15 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
         showControls();
     }, [isPlaying, isBuffering, showControls]);
 
-    // --- Render ---
     return (
         <div
             ref={playerContainerRef}
-            className={`relative w-full max-w-4xl aspect-video rounded-xl overflow-hidden shadow-2xl bg-slate-950
+            className={`relative h-full aspect-video rounded-xl overflow-hidden shadow-2xl bg-slate-950
                 ${isFullScreen ? 'fixed inset-0 z-[100] rounded-none' : ''}`}
             onMouseMove={showControls}
             onMouseLeave={hideControls}
             onDoubleClick={handleDoubleClick}
         >
-            {/* Video Element */}
             <video
                 ref={videoRef}
                 className="w-full h-full object-contain cursor-pointer"
@@ -275,50 +261,59 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
                 onClick={togglePlayPause}
             ></video>
 
-            {/* Buffering Overlay */}
             {isBuffering && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-slate-400 z-20">
                     Buffering...
                 </div>
             )}
 
-            {/* Seek Indicator Overlay */}
             {seekIndicator && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-800/80 text-slate-400 px-4 py-2 rounded-full">
                     {seekIndicator}
                 </div>
             )}
 
-            {/* Controls Bar */}
+            <div
+                className={`absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent
+                    ${isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
+                    transition-all duration-300 ease-in-out z-20`}
+            >
+                <button
+                    onClick={onBackClick}
+                    className="px-4 py-2 bg-slate-800/60 hover:bg-slate-700 rounded-full transition-colors duration-200 font-medium text-slate-400"
+                >
+                    <ArrowUturnLeftIcon className="h-6 w-6 inline-block mr-2" />
+                </button>
+            </div>
+
             <div
                 className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent
                     ${isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
-                    transition-all duration-300 ease-in-out`}
+                    transition-all duration-300 ease-in-out z-20`}
             >
-                {/* Progress Bar */}
+                <h1 className="text-6xl font-bold text-slate-400 max-w-lg mb-4">
+                    {mediaTitle}
+                </h1>
+                
                 <div
                     ref={progressBarRef}
-                    className="w-full h-2 bg-slate-700 rounded-full cursor-pointer overflow-hidden group"
+                    className="w-full h-1 bg-slate-700 rounded-full cursor-pointer overflow-hidden group"
                     onClick={handleProgressBarClick}
                 >
                     <div
-                        className="h-full bg-gradient-to-r from-fuchsia-500 to-purple-600 transition-all duration-100"
+                        className="h-full bg-slate-400 rounded-full transition-all duration-100"
                         style={{ width: `${(currentTime / duration) * 100}%` }}
                     />
                 </div>
 
-                {/* Control Buttons and Info */}
                 <div className="flex justify-between items-center mt-4 text-slate-400">
                     <div className="flex items-center space-x-4">
-                        {/* Play/Pause Button */}
                         <button onClick={togglePlayPause} className="hover:text-white transition-colors duration-200">
                             {isPlaying ? <PauseIcon className="h-8 w-8" /> : <PlayIcon className="h-8 w-8" />}
                         </button>
-                        {/* Time Display */}
-                        <span className="font-mono text-sm">
+                        <span className="text-md font-bold">
                             {formatTime(currentTime)} / {formatTime(duration)}
                         </span>
-                        {/* Volume Controls */}
                         <div className="flex items-center space-x-2">
                             <button onClick={toggleMute} className="hover:text-white transition-colors duration-200">
                                 {isMuted ? <SpeakerXMarkIcon className="h-6 w-6" /> : <SpeakerWaveIcon className="h-6 w-6" />}
@@ -326,22 +321,21 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
                             <input type="range" min="0" max="1" step="0.01"
                                 value={isMuted ? 0 : volume}
                                 onChange={handleVolumeChangeSlider}
-                                className="w-24 h-1 rounded-lg cursor-pointer accent-fuchsia-500"
+                                className="w-24 h-1 rounded-lg cursor-pointer accent-slate-400"
                             />
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">
-                        {/* Quality Selector */}
                         <div className="relative">
                             <select
                                 value={selectedQuality}
                                 onChange={handleQualityChange}
-                                className="appearance-none bg-slate-800 text-slate-400 py-1 pl-3 pr-8 rounded-md cursor-pointer text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500 transition-colors duration-200"
+                                className="appearance-none bg-slate-800 text-slate-400 py-1 pl-3 pr-8 rounded-md cursor-pointer text-md  focus:outline-none focus:ring-2 focus:ring-slate-400 transition-colors duration-200 "
                             >
                                 <option value="auto">Auto</option>
                                 {qualityLevels.map(q => (
                                     <option key={q.id} value={q.id}>
-                                        {q.width}x{q.height} ({Math.round(q.bitrate / 1000)} kbps)
+                                        {q.height}p
                                     </option>
                                 ))}
                             </select>
@@ -350,7 +344,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, onPlayerInitialized }
                             </div>
                         </div>
 
-                        {/* Fullscreen Button */}
                         <button onClick={toggleFullScreen} className="hover:text-white transition-colors duration-200">
                             {isFullScreen ? <ArrowsPointingInIcon className="h-6 w-6" /> : <ArrowsPointingOutIcon className="h-6 w-6" />}
                         </button>
