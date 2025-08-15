@@ -7,6 +7,7 @@ from flask_cors import CORS
 from app.extensions import db, migrate, login_manager, bcrypt # NEW: import login_manager, bcrypt
 import click
 from app.transcoding import package_for_dash
+import os
 
 # Import models so Flask-Migrate can discover them
 from app.models import user, media # Ensure user is imported
@@ -98,7 +99,7 @@ def create_app(config_class=Config):
     login_manager.login_view = 'auth.login' # NEW: Specify login view (blueprint_name.route_name)
     login_manager.session_protection = "strong" # Recommended for security
 
-    CORS(app, supports_credentials=True) # NEW: Set supports_credentials=True for session cookies
+    CORS(app, supports_credentials=True, origins='*') 
 
     app.register_blueprint(media_bp, url_prefix='/api/media')
     app.register_blueprint(auth_bp, url_prefix='/api/auth') # NEW: Register auth blueprint

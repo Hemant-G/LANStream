@@ -95,14 +95,10 @@ const Watch = () => {
             } else {
                 player.seek(0);
             }
-            
-            // Auto-enter fullscreen when player is ready
-            if (playerContainerRef.current) {
-                playerContainerRef.current.requestFullscreen().catch(err => {
-                    console.warn("Fullscreen request failed:", err);
-                });
-            }
 
+            // Removed auto-fullscreen to comply with browser policies.
+            // Fullscreen is now handled by a user click event in DashPlayer.
+            
             progressIntervalRef.current = setInterval(() => {
                 const currentPosition = player.time();
                 saveProgress(currentPosition);
@@ -150,7 +146,7 @@ const Watch = () => {
 
     return (
         <div className="h-screen bg-gray-950 text-slate-400 flex flex-col items-center">
-            <main className="h-full bg-black rounded-xl shadow-2xl overflow-hidden">
+            <main className="h-full w-full bg-black flex-grow flex items-center justify-center">
                 <DashPlayer
                     manifestUrl={manifestUrl}
                     playerRef={playerRef}

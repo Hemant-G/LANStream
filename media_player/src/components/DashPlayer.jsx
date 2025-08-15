@@ -29,6 +29,13 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
     const seekIndicatorTimeoutRef = useRef(null);
     const controlsHideTimeoutRef = useRef(null);
 
+    const isMobile = useRef(false);
+
+    // Initial check for mobile device
+    useEffect(() => {
+        isMobile.current = /Mobi|Android/i.test(navigator.userAgent);
+    }, []);
+
     const togglePlayPause = useCallback(() => {
         if (!videoRef.current) return;
         if (isPlaying) {
@@ -65,17 +72,29 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
         }
         setIsControlsVisible(true);
     }, [isMuted]);
-
+    
+    // Updated toggleFullScreen logic
     const toggleFullScreen = useCallback(() => {
         if (playerContainerRef.current) {
-            if (!isFullScreen) {
+            if (!document.fullscreenElement) {
                 playerContainerRef.current.requestFullscreen?.();
+                setIsFullScreen(true);
+                // Lock orientation on user gesture (click)
+                if (isMobile.current && screen.orientation) {
+                    screen.orientation.lock('landscape').catch((err) => console.log('Orientation lock failed:', err));
+                }
             } else {
                 document.exitFullscreen?.();
+                setIsFullScreen(false);
+                // Unlock orientation on user gesture (click)
+                if (isMobile.current && screen.orientation) {
+                    screen.orientation.unlock();
+                }
             }
         }
         setIsControlsVisible(true);
-    }, [isFullScreen]);
+    }, [isMobile, playerContainerRef]);
+
 
     const handleQualityChange = useCallback((event) => {
         const value = event.target.value;
@@ -94,7 +113,7 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
             }
         }
         setIsControlsVisible(true);
-    }, []);
+    }, [playerRef]);
 
     const seekBy = useCallback((seconds) => {
         if (!videoRef.current) return;
@@ -151,18 +170,18 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
     const showControls = useCallback(() => {
         setIsControlsVisible(true);
         clearTimeout(controlsHideTimeoutRef.current);
-        if (isPlaying && !isBuffering) {
+        if (isPlaying && !isBuffering && isFullScreen) {
             controlsHideTimeoutRef.current = setTimeout(() => {
                 setIsControlsVisible(false);
             }, 3000);
         }
-    }, [isPlaying, isBuffering]);
+    }, [isPlaying, isBuffering, isFullScreen]);
 
     const hideControls = useCallback(() => {
-        if (isPlaying && !isBuffering) {
+        if (isPlaying && !isBuffering && isFullScreen) {
             setIsControlsVisible(false);
         }
-    }, [isPlaying, isBuffering]);
+    }, [isPlaying, isBuffering, isFullScreen]);
 
     useEffect(() => {
         if (!videoRef.current || !manifestUrl || !dashjs_lib?.MediaPlayer) {
@@ -223,13 +242,17 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
             setIsMuted(videoRef.current.muted);
         });
 
-        document.addEventListener('fullscreenchange', () => setIsFullScreen(!!document.fullscreenElement));
+        // Removed the handleFullscreenChange callback here to prevent redundant calls
+        document.addEventListener('fullscreenchange', () => {
+            setIsFullScreen(!!document.fullscreenElement);
+        });
 
         return () => {
             player.reset();
             playerRef.current = null;
         };
     }, [manifestUrl, playerRef, initialTime]);
+
 
     useEffect(() => {
         if (!videoRef.current) return;
@@ -247,8 +270,8 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
     return (
         <div
             ref={playerContainerRef}
-            className={`relative h-full aspect-video rounded-xl overflow-hidden shadow-2xl bg-slate-950
-                ${isFullScreen ? 'fixed inset-0 z-[100] rounded-none' : ''}`}
+            className={`relative w-full aspect-video rounded-xl overflow-hidden shadow-2xl bg-slate-950
+                ${isFullScreen ? 'fullscreen-player' : ''}`}
             onMouseMove={showControls}
             onMouseLeave={hideControls}
             onDoubleClick={handleDoubleClick}
@@ -268,7 +291,7 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
             )}
 
             {seekIndicator && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-800/80 text-slate-400 px-4 py-2 rounded-full">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-800/80 text-slate-400 px-4 py-2 rounded-full z-30">
                     {seekIndicator}
                 </div>
             )}
@@ -291,10 +314,15 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
                     ${isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
                     transition-all duration-300 ease-in-out z-20`}
             >
-                <h1 className="text-6xl font-bold text-slate-400 max-w-lg mb-4">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-400 max-w-lg mb-4">
                     {mediaTitle}
                 </h1>
-                
+                <div className="w-full flex flex-row-reverse text-md font-bold">
+                    <div>
+                        {formatTime(currentTime)} / {formatTime(duration)}
+                    </div>
+                </div>
+
                 <div
                     ref={progressBarRef}
                     className="w-full h-1 bg-slate-700 rounded-full cursor-pointer overflow-hidden group"
@@ -311,9 +339,6 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
                         <button onClick={togglePlayPause} className="hover:text-white transition-colors duration-200">
                             {isPlaying ? <PauseIcon className="h-8 w-8" /> : <PlayIcon className="h-8 w-8" />}
                         </button>
-                        <span className="text-md font-bold">
-                            {formatTime(currentTime)} / {formatTime(duration)}
-                        </span>
                         <div className="flex items-center space-x-2">
                             <button onClick={toggleMute} className="hover:text-white transition-colors duration-200">
                                 {isMuted ? <SpeakerXMarkIcon className="h-6 w-6" /> : <SpeakerWaveIcon className="h-6 w-6" />}
@@ -340,7 +365,7 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
                                 ))}
                             </select>
                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
-                                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
                             </div>
                         </div>
 
