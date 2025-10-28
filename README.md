@@ -1,12 +1,12 @@
-# LANstream
+# LANStream
 
 A full-stack video streaming solution designed for seamless, high-quality media playback within a local area network (LAN).
 
-![Preview of LANstream](/media_player/public/lanstream_thumbnail.png)
+![Preview of LANStream](/media_player/public/lanstream_thumbnail.png)
 
 ## Project Overview
 
-LANstream is a self-contained media streaming application that uses **DASH (Dynamic Adaptive Streaming over HTTP)** to deliver video content from a local server to any device on the same network. This approach ensures low latency and high-speed playbook without relying on external internet connections or cloud services.
+LANStream is a self-contained media streaming application that uses **DASH (Dynamic Adaptive Streaming over HTTP)** to deliver video content from a local server to any device on the same network. This approach ensures low latency and high-speed playbook without relying on external internet connections or cloud services.
 
 ### Key Features
 
@@ -133,7 +133,7 @@ The Dash.js player intelligently switches between video qualities using:
 
 ## Media Management
 
-LANstream includes built-in CLI tools for managing your media library:
+LANStream includes built-in CLI tools for managing your media library:
 
 ### Scan Media Directory
 ```bash
