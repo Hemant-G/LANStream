@@ -220,7 +220,6 @@ def delete_media(media_id):
 
 
 @media_bp.route('/scan', methods=['POST'])
-@admin_required 
 def scan_media_endpoint():
     """
     Scans the media directory, updates the database to only include media files

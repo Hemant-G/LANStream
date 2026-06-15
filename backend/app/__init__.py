@@ -13,7 +13,7 @@ import os
 from app.models import user, media # Ensure user is imported
 from app.models.user_media_progress import UserMediaProgress # NEW: Import UserMediaProgress
 
-# --- Scan media (no change to this function for now) ---
+# --- Scan media ---
 def run_scan(app):
     import os
     import subprocess
