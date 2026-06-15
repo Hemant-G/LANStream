@@ -54,8 +54,8 @@ const Home = () => {
     };
 
     const handleScanMedia = async () => {
-        if (!user || user.role !== 'admin') {
-            alert('You must be an admin to perform this action.');
+        if (!user ) {
+            alert('You must be an authenticated to perform this action.');
             return;
         }
         setFetchLoading(true);
@@ -94,7 +94,7 @@ const Home = () => {
     if (isLoading) return renderLoadingState();
     if (!isAuthenticated) return null;
     if (fetchError) return renderErrorState();
-    
+
     const featuredItem = mediaItems.length > 0 ? mediaItems[0] : null;
     const otherMedia = mediaItems.slice(1);
 
@@ -110,7 +110,7 @@ const Home = () => {
                             Logged in as: <span className="font-semibold text-slate-400">{user.username}</span>
                         </span>
                     )}
-                    {user && user.role === 'admin' && (
+                    {user && (
                         <button
                             onClick={handleScanMedia}
                             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-md transition-colors duration-200 font-medium"
@@ -132,9 +132,9 @@ const Home = () => {
                 {featuredItem && (
                     <div className="relative mb-12 rounded-xl overflow-hidden shadow-2xl">
                         <img
-                            src={featuredItem.thumbnail || "https://upload.wikimedia.org/wikipedia/commons/b/b6/Image_created_with_a_mobile_phone.png"}
+                            src={import.meta.env.VITE_BACKEND_BASE_URL + "/api/" +featuredItem.thumbnail}
                             alt={featuredItem.title}
-                            className="w-full h-auto object-cover max-h-[70vh] rounded-xl"
+                            className="w-full h-auto object-cover max-h-[70vh] min-h-[50vh] rounded-xl"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent flex items-end p-8 sm:p-16">
                             <div className="max-w-2xl">

@@ -8,6 +8,7 @@ import { Link } from 'react-router'; // Using react-router-dom for modern projec
  * Props:
  * - media: object containing media details (id, title, thumbnail, user progress, duration, last watched)
  */
+const media_base_url = import.meta.env.VITE_BACKEND_BASE_URL + "/api/"; // Get backend base URL from environment variables
 const MediaCard = ({ media }) => {
     return (
         <Link to={`/watch/${media.id}`} key={media.id} className="block group">
@@ -15,7 +16,7 @@ const MediaCard = ({ media }) => {
                 {/* Render thumbnail if available */}
                 {media.thumbnail && (
                     <img
-                        src={media.thumbnail}
+                        src={media_base_url + media.thumbnail}
                         alt={media.title}
                         className="w-full h-48 object-cover object-center"
                     />

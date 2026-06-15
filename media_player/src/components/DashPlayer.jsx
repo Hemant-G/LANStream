@@ -28,6 +28,7 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
     const [seekIndicator, setSeekIndicator] = useState(null);
     const seekIndicatorTimeoutRef = useRef(null);
     const controlsHideTimeoutRef = useRef(null);
+    const [triggerFeedback, setTriggerFeedback] = useState({ actionType: null, timestamp: 0 });
 
     const isMobile = useRef(false);
 
@@ -40,10 +41,12 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
         if (!videoRef.current) return;
         if (isPlaying) {
             videoRef.current.pause();
+            setTriggerFeedback({ actionType: 'PAUSE', timestamp: Date.now() });
         } else {
             videoRef.current.play().catch(error => {
                 console.warn("[DashPlayer WARN] Play failed:", error);
             });
+            setTriggerFeedback({ actionType: 'PLAY', timestamp: Date.now() });
         }
         setIsControlsVisible(true);
     }, [isPlaying]);
@@ -72,7 +75,7 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
         }
         setIsControlsVisible(true);
     }, [isMuted]);
-    
+
     // Updated toggleFullScreen logic
     const toggleFullScreen = useCallback(() => {
         if (playerContainerRef.current) {
@@ -170,7 +173,7 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
     const showControls = useCallback(() => {
         setIsControlsVisible(true);
         clearTimeout(controlsHideTimeoutRef.current);
-        if (isPlaying && !isBuffering && isFullScreen) {
+        if (isPlaying && !isBuffering) {
             controlsHideTimeoutRef.current = setTimeout(() => {
                 setIsControlsVisible(false);
             }, 3000);
@@ -270,7 +273,7 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
     return (
         <div
             ref={playerContainerRef}
-            className={`relative w-full aspect-video rounded-xl overflow-hidden shadow-2xl bg-slate-950
+            className={`relative h-full aspect-video rounded-xl overflow-hidden shadow-2xl bg-slate-950
                 ${isFullScreen ? 'fullscreen-player' : ''}`}
             onMouseMove={showControls}
             onMouseLeave={hideControls}
@@ -287,6 +290,24 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
             {isBuffering && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-slate-400 z-20">
                     Buffering...
+                </div>
+            )}
+
+            {/* Playback Interaction HUD Overlay */}
+            {triggerFeedback.actionType && (
+                <div
+                    key={triggerFeedback.timestamp}
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none z-30"
+                >
+                    <div className={`bg-slate-900/60 p-5 rounded-full text-slate-400 animate-ping [animation-duration:500ms] [animation-iteration-count:1]
+                        ${isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
+                    transition-all duration-300 ease-in-out z-20`}>
+                        {triggerFeedback.actionType === 'PLAY' ? (
+                            <PlayIcon className="h-12 w-12" />
+                        ) : (
+                            <PauseIcon className="h-12 w-12" />
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -314,7 +335,7 @@ const DashPlayer = ({ manifestUrl, playerRef, initialTime, mediaTitle, onBackCli
                     ${isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
                     transition-all duration-300 ease-in-out z-20`}
             >
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-400 max-w-lg mb-4">
+                <h1 className="text-2xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-slate-400 max-w-lg mb-4">
                     {mediaTitle}
                 </h1>
                 <div className="w-full flex flex-row-reverse text-md font-bold">
